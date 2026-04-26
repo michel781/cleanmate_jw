@@ -43,6 +43,10 @@ interface AppContextValue {
   sentByMe: Verification[];
   myScore: number;
   myLevel: LevelInfo;
+
+  // Account status
+  isAnonymous: boolean;
+  email: string | null;
 }
 
 const AppContext = createContext<AppContextValue | null>(null);
@@ -147,6 +151,8 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
     data, reload, saving, showToast, withSaving, setApiError, checkBadgesAndNotify,
     score, state, theme, bgOuter, bgInner, cardBg, inputBg,
     me, partner, pendingForMe, sentByMe, myScore, myLevel,
+    isAnonymous: data.isAnonymous,
+    email: data.email,
   };
 
   return (

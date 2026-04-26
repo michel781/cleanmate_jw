@@ -2,13 +2,13 @@
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Award, ChevronRight, Settings, Trophy } from 'lucide-react';
+import { ArrowLeft, Award, ChevronRight, Mail, Settings, Sparkles, Trophy } from 'lucide-react';
 import { useAppContext } from '../AppDataProvider';
 import { BADGES } from '@/lib/constants';
 
 export default function MyPage() {
   const router = useRouter();
-  const { data, theme: t, cardBg, me, myLevel } = useAppContext();
+  const { data, theme: t, cardBg, me, myLevel, isAnonymous, email } = useAppContext();
 
   return (
     <div className="animate-fade-in pb-24">
@@ -63,6 +63,37 @@ export default function MyPage() {
         </div>
       </div>
 
+      {isAnonymous && (
+        <div className="px-5 mb-4">
+          <Link
+            href="/me/upgrade"
+            className="block rounded-2xl p-4 active:scale-[0.99] transition-transform"
+            style={{
+              background: `${t.accent}15`,
+              border: `1.5px dashed ${t.accent}`,
+            }}
+          >
+            <div className="flex items-center gap-3">
+              <div
+                className="w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0"
+                style={{ background: t.accent, color: '#FFFBF5' }}
+              >
+                <Sparkles size={20} />
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="font-bold text-sm" style={{ color: t.accent }}>
+                  정식 회원으로 전환하기
+                </div>
+                <div className="text-[11px] opacity-70 mt-0.5 leading-snug">
+                  지금은 게스트(익명) 상태예요. 이메일을 등록하면 다른 기기에서도 같은 데이터를 볼 수 있어요.
+                </div>
+              </div>
+              <ChevronRight size={18} style={{ color: t.accent }} />
+            </div>
+          </Link>
+        </div>
+      )}
+
       <div className="px-5">
         <h3 className="text-sm font-bold mb-3">내 기록</h3>
         <div className="grid grid-cols-3 gap-2 mb-5">
@@ -104,6 +135,25 @@ export default function MyPage() {
               <div className="font-bold text-sm">업적 & 배지</div>
               <div className="text-[10px] opacity-50">
                 {data.badges.length}/{BADGES.length} 획득
+              </div>
+            </div>
+          </div>
+          <ChevronRight size={16} style={{ color: t.accent }} />
+        </Link>
+
+        <Link
+          href="/me/upgrade"
+          className="block w-full rounded-2xl p-4 flex items-center justify-between"
+          style={{ background: cardBg }}
+        >
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: `${t.accent}15` }}>
+              <Mail size={16} style={{ color: t.accent }} />
+            </div>
+            <div className="text-left">
+              <div className="font-bold text-sm">계정</div>
+              <div className="text-[10px] opacity-50">
+                {isAnonymous ? '게스트 (이메일 미등록)' : email}
               </div>
             </div>
           </div>

@@ -19,6 +19,10 @@ import type {
 
 export interface AppData {
   userId: string;
+  /** True for anonymous-signed-in users (no email yet). */
+  isAnonymous: boolean;
+  /** The verified email of the user, or null for anonymous users. */
+  email: string | null;
   profile: Profile;
   party: Party;
   members: Profile[];
@@ -71,8 +75,14 @@ export function useAppData() {
         getMyTotals(supabase),
       ]);
 
+      // Anonymous users have no email and `is_anonymous: true` (Supabase v2.43+).
+      // Treat anonymous OR no-email-confirmed as "needs upgrade".
+      const isAnonymous = (user as { is_anonymous?: boolean }).is_anonymous === true || !user.email;
+
       const next: AppData = {
         userId: user.id,
+        isAnonymous,
+        email: user.email ?? null,
         profile,
         party,
         members,

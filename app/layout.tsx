@@ -1,9 +1,13 @@
 import type { Metadata, Viewport } from 'next';
 import './globals.css';
 
+const SITE_URL =
+  process.env.NEXT_PUBLIC_SITE_URL ?? 'https://certification-fawn-psi.vercel.app';
+
 export const metadata: Metadata = {
+  metadataBase: new URL(SITE_URL),
   title: 'CleanMate — 혼자 하던 청소, 같이 하는 즐거움',
-  description: '파트너와 서로 사진으로 인증하는 청소 습관 앱',
+  description: '파트너와 서로 사진으로 인증하는 청소 습관 앱. 허위 체크 없는 정직한 분담.',
   manifest: '/manifest.json',
   icons: {
     icon: [
@@ -14,6 +18,21 @@ export const metadata: Metadata = {
     apple: [
       { url: '/icons/icon-192.png', sizes: '192x192' },
     ],
+  },
+  // Next.js automatically wires app/opengraph-image.tsx and app/twitter-image.tsx
+  // into the OG/Twitter meta tags below. We only need to set the textual fields.
+  openGraph: {
+    type: 'website',
+    siteName: 'CleanMate',
+    title: 'CleanMate — 혼자 하던 청소, 같이 하는 즐거움',
+    description: '파트너와 서로 사진으로 인증하는 청소 습관 앱',
+    locale: 'ko_KR',
+    url: '/',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'CleanMate — 혼자 하던 청소, 같이 하는 즐거움',
+    description: '파트너와 서로 사진으로 인증하는 청소 습관 앱',
   },
   appleWebApp: {
     capable: true,

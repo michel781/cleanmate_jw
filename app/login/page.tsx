@@ -12,6 +12,7 @@ export default function LoginPage() {
   const [mode, setMode] = useState<Mode>('login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [passwordConfirm, setPasswordConfirm] = useState('');
   const [loading, setLoading] = useState(false);
   const [magicSent, setMagicSent] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -35,6 +36,10 @@ export default function LoginPage() {
     }
     if (password.length < 6) {
       setError('비밀번호는 6자 이상이어야 해요');
+      return;
+    }
+    if (mode === 'signup' && password !== passwordConfirm) {
+      setError('비밀번호와 비밀번호 확인이 일치하지 않아요');
       return;
     }
 
@@ -167,7 +172,7 @@ export default function LoginPage() {
             >
               <button
                 type="button"
-                onClick={() => { setMode('login'); clearMessages(); }}
+                onClick={() => { setMode('login'); setPassword(''); setPasswordConfirm(''); clearMessages(); }}
                 className="flex-1 py-2 rounded-lg text-sm font-bold transition"
                 style={{
                   background: mode === 'login' ? '#D4824A' : 'transparent',
@@ -178,7 +183,7 @@ export default function LoginPage() {
               </button>
               <button
                 type="button"
-                onClick={() => { setMode('signup'); clearMessages(); }}
+                onClick={() => { setMode('signup'); setPassword(''); setPasswordConfirm(''); clearMessages(); }}
                 className="flex-1 py-2 rounded-lg text-sm font-bold transition"
                 style={{
                   background: mode === 'signup' ? '#D4824A' : 'transparent',
@@ -237,9 +242,55 @@ export default function LoginPage() {
                 />
               </div>
 
+              {mode === 'signup' && (
+                <div className="relative">
+                  <Lock
+                    size={16}
+                    className="absolute left-4 top-1/2 -translate-y-1/2 opacity-50"
+                    style={{ color: '#3D2817' }}
+                  />
+                  <input
+                    type="password"
+                    autoComplete="new-password"
+                    value={passwordConfirm}
+                    onChange={(e) => setPasswordConfirm(e.target.value)}
+                    placeholder="비밀번호 확인"
+                    required
+                    minLength={6}
+                    className="w-full pl-10 pr-12 py-3 rounded-xl text-sm font-bold outline-none"
+                    style={{
+                      background: '#FFFBF5',
+                      border: `1.5px solid ${
+                        passwordConfirm.length === 0
+                          ? '#D4824A30'
+                          : password === passwordConfirm
+                          ? '#5C8A6B'
+                          : '#C46E52'
+                      }`,
+                      color: '#3D2817',
+                    }}
+                  />
+                  {passwordConfirm.length > 0 && (
+                    <span
+                      className="absolute right-4 top-1/2 -translate-y-1/2 text-[11px] font-bold"
+                      style={{
+                        color: password === passwordConfirm ? '#5C8A6B' : '#C46E52',
+                      }}
+                    >
+                      {password === passwordConfirm ? '✓ 일치' : '✗ 불일치'}
+                    </span>
+                  )}
+                </div>
+              )}
+
               <button
                 type="submit"
-                disabled={loading || !email || !password}
+                disabled={
+                  loading ||
+                  !email ||
+                  !password ||
+                  (mode === 'signup' && (!passwordConfirm || password !== passwordConfirm))
+                }
                 className="w-full py-3 rounded-xl font-bold text-sm flex items-center justify-center gap-2 disabled:opacity-50"
                 style={{ background: '#D4824A', color: '#FFFBF5' }}
               >

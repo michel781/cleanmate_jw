@@ -85,6 +85,60 @@ npm start           # boots production server on :3000
 
 Open <http://localhost:3000> and check DevTools → Application → Service Workers.
 
+## Auth: Email confirmation 모드 선택
+
+CleanMate는 두 가지 회원가입 흐름을 모두 지원해요. 코드는 자동 분기 — Supabase 설정만 바꾸면 됩니다.
+
+### 옵션 A — Confirm email **OFF** (개발/MVP)
+
+회원가입 시 이메일 인증 없이 즉시 로그인.
+
+- **장점**: 메일 발송 없음 → rate limit 무관, 100% 안정
+- **단점**: 가짜 이메일도 가입 가능 (보안 ↓)
+- **설정**: Supabase 대시보드 → Authentication → **Sign In / Providers → User Signups → `Confirm email`** **OFF** → Save
+
+코드 동작: `signUp` 응답의 `data.session`이 즉시 채워짐 → 자동으로 홈 이동.
+
+### 옵션 B — Confirm email **ON** (표준 운영)
+
+회원가입 후 인증 메일 클릭해야 로그인 가능. 진짜 이메일 소유자만 통과.
+
+- **장점**: 보안 강화 (가짜 이메일 차단)
+- **단점**: 메일 발송 필요. Supabase 무료 default SMTP는 시간당 3-4건 한도 → 운영에 부적합
+- **설정**:
+  1. Supabase 대시보드 → Authentication → **Sign In / Providers → User Signups → `Confirm email`** **ON** → Save
+  2. **Custom SMTP 필수** (아래)
+
+코드 동작: `signUp` 응답의 `data.session`이 `null` → "이메일 확인해주세요" 안내 화면. 사용자가 메일 링크 클릭 → 자동 로그인.
+
+### Custom SMTP 연결 (옵션 B 운영 시 필수)
+
+Resend가 가장 쉬워요 — 월 3,000건 무료, GitHub 로그인.
+
+1. https://resend.com 가입 → API Keys → **Create API Key** → 이름 `cleanmate-supabase` → Create → 키 복사 (`re_xxx...`)
+2. **Supabase 대시보드 → Project Settings → Auth** (또는 Authentication → Emails → SMTP Settings):
+   - **Enable Custom SMTP**: ON
+   - **Sender email**: 본인 도메인 있으면 `noreply@your-domain.com`, 없으면 `onboarding@resend.dev` (Resend 기본)
+   - **Sender name**: `CleanMate`
+   - **Host**: `smtp.resend.com`
+   - **Port**: `587`
+   - **Username**: `resend`
+   - **Password**: 1번에서 받은 Resend API 키
+   - **Save**
+3. 회원가입 한 번 해서 메일 5초 안에 도착하는지 검증
+
+대안: SendGrid (무료 100/일), AWS SES, Postmark 등도 같은 방식.
+
+### 옵션 B 트러블슈팅
+
+| 증상 | 원인 | 해결 |
+|------|------|------|
+| 가입은 됐는데 메일 안 옴 | Supabase default SMTP rate limit | Custom SMTP 설정 (Resend) |
+| 메일 왔는데 클릭 시 "redirect not allowed" | URL Configuration 미갱신 | Site URL + Redirect URLs에 production 도메인 추가 |
+| Gmail에서 메일이 Promotions 탭에 들어감 | DNS 인증 부족 | Resend의 Domain Verification (DKIM/SPF) 설정 |
+
+---
+
 ## Self-hosted (any Node 20+ host)
 
 No Dockerfile is included; the standard flow works:

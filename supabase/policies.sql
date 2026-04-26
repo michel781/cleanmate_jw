@@ -53,7 +53,8 @@ create policy "profiles_select_self_and_party_members"
 
 create policy "profiles_update_self"
   on public.profiles for update
-  using (id = auth.uid());
+  using (id = auth.uid())
+  with check (id = auth.uid());
 
 create policy "profiles_insert_self"
   on public.profiles for insert
@@ -66,14 +67,16 @@ create policy "parties_select_members"
   on public.parties for select
   using (public.is_party_member(id));
 
-create policy "parties_select_by_invite"
-  on public.parties for select
-  using (true);
--- ^ Anyone with invite_code can read the party name. You can tighten this if needed.
+-- Invite-code lookup is NOT done via a wide-open SELECT policy. It's done
+-- via the `get_party_by_invite_code(text)` SECURITY DEFINER function in
+-- functions.sql, which exposes only id + name for one matching row.
+-- Previous version had `using (true)` here, which let anyone with the
+-- public anon key dump every party + invite_code in the database.
 
 create policy "parties_update_members"
   on public.parties for update
-  using (public.is_party_member(id));
+  using (public.is_party_member(id))
+  with check (public.is_party_member(id));
 
 -- ============================================================
 -- PARTY MEMBERS

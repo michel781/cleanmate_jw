@@ -15,6 +15,6 @@ export const config = {
      * - PWA assets that must be reachable without auth: sw.js, sw.js.map, manifest.json
      * - public binary assets by extension
      */
-    '/((?!_next/static|_next/image|favicon\\.ico|sw\\.js|sw\\.js\\.map|manifest\\.json|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)',
+    '/((?!_next/static|_next/image|favicon\\.ico|sw\\.js|sw\\.js\\.map|manifest\\.json|opengraph-image|twitter-image|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)',
   ],
 };

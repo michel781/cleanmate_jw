@@ -152,11 +152,12 @@ export default async function Image() {
               color: '#3D2817',
               lineHeight: 1.15,
               marginTop: 30,
+              display: 'flex',
+              flexDirection: 'column',
             }}
           >
-            혼자 하던 청소,
-            <br />
-            같이 하는 즐거움
+            <div style={{ display: 'flex' }}>혼자 하던 청소,</div>
+            <div style={{ display: 'flex' }}>같이 하는 즐거움</div>
           </div>
 
           <div
@@ -166,11 +167,12 @@ export default async function Image() {
               opacity: 0.7,
               marginTop: 28,
               lineHeight: 1.5,
+              display: 'flex',
+              flexDirection: 'column',
             }}
           >
-            파트너와 서로 사진으로 인증하는
-            <br />
-            정직한 청소 습관 앱
+            <div style={{ display: 'flex' }}>파트너와 서로 사진으로 인증하는</div>
+            <div style={{ display: 'flex' }}>정직한 청소 습관 앱</div>
           </div>
 
           <div

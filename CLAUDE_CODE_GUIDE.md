@@ -28,15 +28,25 @@
 ### 프론트엔드 구조
 
 ```
-app/page.tsx              → 루트: auth 확인 후 /login, /onboarding, /home 중으로 리다이렉트
-app/login/page.tsx        → 이메일 매직링크 로그인 + 익명 로그인 (데모용)
+app/login/page.tsx        → 이메일 로그인 + 익명 로그인 (퍼블릭)
 app/onboarding/page.tsx   → 3단계 튜토리얼 (웰컴 → 컨셉 → 프로필)
-app/join/[code]/page.tsx  → 초대 코드로 파티 참여
-app/home/page.tsx         → 메인 앱 (1499줄, SPA 스타일로 모든 뷰 내장)
-                            └ view state로 전환: home/inbox/tasks/stats/mypage/
-                              settings/notifications/achievements/activity/
-                              camera/waiting/add_task/edit_task/edit_profile
+app/join/[code]/page.tsx  → 초대 코드로 파티 참여 (퍼블릭, get_party_by_invite_code RPC 사용)
+app/(app)/                → 인증 필요한 메인 앱 (proxy.ts 미들웨어가 미인증 시 /login으로)
+  ├── layout.tsx          → BottomNav + AppDataProvider
+  ├── AppDataProvider.tsx → 파티 데이터 + 실시간 구독
+  ├── page.tsx            → 홈 (거실)
+  ├── inbox/page.tsx      → 인증 요청함 (signed URL로 사진 표시)
+  ├── tasks/              → 청소 항목 목록/추가/편집
+  ├── camera/[taskId]/    → 인증 사진 업로드
+  ├── stats/page.tsx      → 통계
+  ├── activity/page.tsx   → 활동 로그
+  ├── achievements/       → 배지
+  ├── inbox, me, settings → ...
 ```
+
+> **참고**: 초기 버전은 `app/home/page.tsx` 한 파일에 1500줄 SPA였지만,
+> 현재는 `app/(app)/` route group으로 분리 완료됐어요. 이 문서가 SPA 구조를
+> 언급하는 부분이 남아있다면 stale.
 
 ### 라이브러리 레이어
 - `lib/supabase/` — client (browser), server (SSR), middleware (세션 갱신)
@@ -66,47 +76,16 @@ npm run dev
   ```
 - RPC 응답 타입은 수동으로 정의했어요. 실제 응답과 다를 경우 `types/database.ts`의 `Functions` 섹션을 수정하세요.
 
-### 2. 현재 구조의 리팩토링 결정
-`app/home/page.tsx`는 편의상 **1500줄 SPA**로 만들어져 있습니다. 프로덕션 완성도를 올리려면:
+### 2. ✅ 라우트 분리 완료
+초기 버전의 `app/home/page.tsx` 1500줄 SPA는 이미 `app/(app)/*` route group으로 분리 완료. 위 "프론트엔드 구조" 섹션 참조.
 
-**옵션 A** (권장, Next.js 스타일): 뷰별로 별도 라우트로 분리
-```
-app/
-├── (app)/
-│   ├── layout.tsx          # BottomNav 공통
-│   ├── page.tsx            # home (거실)
-│   ├── inbox/page.tsx
-│   ├── tasks/page.tsx
-│   ├── tasks/new/page.tsx
-│   ├── tasks/[id]/edit/page.tsx
-│   ├── camera/[taskId]/page.tsx
-│   ├── stats/page.tsx
-│   ├── activity/page.tsx
-│   ├── me/page.tsx
-│   ├── me/edit/page.tsx
-│   ├── achievements/page.tsx
-│   └── settings/
-│       ├── page.tsx
-│       ├── notifications/page.tsx
-│       └── partner/page.tsx
-```
+### 3. ✅ 모달 컴포넌트 추출 완료
+`components/modals/`에 `RejectDialog`, `DeleteConfirmDialog`, `ShareModal`, `NewBadgesModal` 모두 분리됨.
 
-각 라우트는 서버 컴포넌트에서 데이터 fetch → 클라이언트 컴포넌트로 hydrate. `app/home/page.tsx`의 각 뷰 JSX 블록을 그대로 떼어내면 됩니다.
-
-**옵션 B** (빠름): 그냥 SPA 유지하고 모달·모듈화만 분리
-
-### 3. 컴포넌트 추출
-지금 `home/page.tsx`에 인라인으로 박혀있는 것들을 `components/modals/`로 빼기:
-- `RejectDialog` — 인증 반려 사유 선택 바텀시트
-- `DeleteConfirmDialog` — 항목 삭제 확인
-- `ShareModal` — 친구 초대 모달
-- `NewBadgesModal` — 배지 획득 축하 모달
-
-### 4. 이미지 업로드 연결
-현재 인증 사진은 placeholder 이모지입니다. 실제 카메라/갤러리 업로드를 연결하려면:
-- `lib/db/verifications.ts`의 `uploadVerificationPhoto()` 이미 구현됨 (Supabase Storage `verifications` 버킷)
-- `app/home/page.tsx`의 camera 뷰에서 `<input type="file" accept="image/*" capture="environment">`로 교체
-- 업로드 후 반환된 public URL을 `createVerification` RPC의 `photo_url` 파라미터로 전달
+### 4. ✅ 이미지 업로드 연결 완료
+- `lib/db/verifications.ts`의 `uploadVerificationPhoto()` — 클라이언트에서 압축 후 Storage로 업로드, 경로(path) 반환
+- `app/(app)/camera/[taskId]/page.tsx` — `<input type="file" accept="image/*" capture="environment">` 사용
+- `components/VerificationPhoto.tsx` — 인박스에서 signed URL로 사진 표시 (bucket은 private, RLS로 같은 파티 멤버만 열람)
 
 ### 5. 실시간 기능 (Realtime)
 Supabase Realtime을 이용한 push 업데이트:
@@ -154,12 +133,11 @@ npm run build && npm start
 
 ## 📝 알려진 제약/TODO
 
-- [ ] `types/database.ts` Supabase CLI로 재생성 필요
-- [ ] 이미지 업로드 UI 미연결 (백엔드는 준비됨)
-- [ ] 실제 PWA 아이콘 추가 필요
+- [ ] `types/database.ts` Supabase CLI로 재생성 권장 (`SUPABASE_PROJECT_ID=xxx npm run db:types`). 현재는 수작업 유지보수.
+- [ ] 실제 PWA 아이콘 추가 필요 (`public/icons/icon-192.png`, `icon-512.png`은 placeholder)
 - [ ] 푸시 알림 (FCM/Web Push)은 지금 브라우저 Notification만 지원
 - [ ] 다국어 (i18n) 미적용 — 한국어 하드코딩
-- [ ] E2E 테스트 없음 (Playwright 추천)
+- [ ] E2E 테스트 (Playwright) 미적용. 단위 테스트는 vitest로 도메인 로직 47개 케이스 커버 (`npm test`, [TESTING.md](TESTING.md) 참고)
 - [ ] `approve_verification` RPC의 배지 자동 해금 로직 — 현재 클라이언트에서 체크, DB에서도 해주면 더 안전
 - [ ] Rate limiting / abuse 방지 (프로덕션 전 필요)
 

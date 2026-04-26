@@ -224,11 +224,11 @@ export interface Database {
     };
     Functions: {
       approve_verification: {
-        Args: { p_verification_id: string; p_approver_id: string };
+        Args: { p_verification_id: string };
         Returns: Json;
       };
       reject_verification: {
-        Args: { p_verification_id: string; p_rejecter_id: string; p_reason: string };
+        Args: { p_verification_id: string; p_reason: string };
         Returns: Json;
       };
       create_verification: {
@@ -238,6 +238,10 @@ export interface Database {
       join_party: {
         Args: { p_invite_code: string };
         Returns: string;
+      };
+      get_party_by_invite_code: {
+        Args: { p_code: string };
+        Returns: { id: string; name: string }[];
       };
       calculate_room_score: {
         Args: { p_party_id: string };

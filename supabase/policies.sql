@@ -195,23 +195,43 @@ create policy "user_totals_select_self_or_party"
   );
 
 -- ============================================================
--- STORAGE POLICIES (run in Supabase dashboard after creating 'verifications' bucket)
+-- STORAGE POLICIES
+--
+-- Prerequisite: create the `verifications` bucket in Supabase Dashboard
+-- with **Public bucket: OFF**. The app uses signed URLs at render time.
+--
+-- Path scheme: <user_uuid>/<timestamp>.jpg — uploads go under the
+-- uploader's auth.uid() folder. RLS enforces this on insert AND on read.
 -- ============================================================
-/*
--- Policy: "Users can upload verification photos to their own path"
+
+-- Upload: only allowed under your own auth.uid() folder.
 create policy "verifications_upload_own"
-  on storage.objects for insert
+  on storage.objects for insert to authenticated
   with check (
     bucket_id = 'verifications'
     and (storage.foldername(name))[1] = auth.uid()::text
   );
 
--- Policy: "Party members can read verification photos"
+-- Read: only co-party-members of the folder owner. This is what lets
+-- a partner view + approve verifications while blocking everyone else.
 create policy "verifications_read_party"
-  on storage.objects for select
+  on storage.objects for select to authenticated
   using (
     bucket_id = 'verifications'
-    -- Additional check: verify user is party member
-    -- You can tighten this with a more complex check joining to verifications table
+    and exists (
+      select 1
+      from public.party_members pm_self
+      join public.party_members pm_owner
+        on pm_self.party_id = pm_owner.party_id
+      where pm_self.user_id = auth.uid()
+        and pm_owner.user_id::text = (storage.foldername(name))[1]
+    )
   );
-*/
+
+-- Delete: only your own uploads.
+create policy "verifications_delete_own"
+  on storage.objects for delete to authenticated
+  using (
+    bucket_id = 'verifications'
+    and (storage.foldername(name))[1] = auth.uid()::text
+  );

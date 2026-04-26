@@ -5,14 +5,15 @@ import { useRouter, useParams } from 'next/navigation';
 import { Loader2, Users } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { joinPartyByInviteCode, getPartyByInviteCode } from '@/lib/db/party';
-import type { Party } from '@/types/app';
+
+type PartyPreview = { id: string; name: string };
 
 export default function JoinPage() {
   const router = useRouter();
   const params = useParams();
   const code = (params.code as string) ?? '';
 
-  const [party, setParty] = useState<Party | null>(null);
+  const [party, setParty] = useState<PartyPreview | null>(null);
   const [loading, setLoading] = useState(true);
   const [joining, setJoining] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -70,7 +71,7 @@ export default function JoinPage() {
         <div className="text-xs opacity-60 mb-1">파티 초대장</div>
         <h1 className="text-2xl font-black mb-1">{party.name}</h1>
         <div className="text-sm opacity-70 mb-6">
-          초대 코드: <span className="font-mono font-bold">{party.invite_code}</span>
+          초대 코드: <span className="font-mono font-bold">{code.toUpperCase()}</span>
         </div>
 
         <button

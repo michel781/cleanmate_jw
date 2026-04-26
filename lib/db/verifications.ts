@@ -47,28 +47,29 @@ export async function createVerification(
   return data as string;
 }
 
-export async function approveVerification(
-  supabase: Client,
-  verificationId: string,
-  approverId: string
-) {
+/**
+ * Approve a pending verification. The acting user is derived server-side
+ * from auth.uid() — there is no caller-supplied approver id, by design.
+ * Throws if the caller isn't a party member or is the original requester.
+ */
+export async function approveVerification(supabase: Client, verificationId: string) {
   const { data, error } = await supabase.rpc('approve_verification', {
     p_verification_id: verificationId,
-    p_approver_id: approverId,
   });
   if (error) throw error;
   return data;
 }
 
+/**
+ * Reject a pending verification. Same auth posture as approveVerification.
+ */
 export async function rejectVerification(
   supabase: Client,
   verificationId: string,
-  rejecterId: string,
   reason: string
 ) {
   const { data, error } = await supabase.rpc('reject_verification', {
     p_verification_id: verificationId,
-    p_rejecter_id: rejecterId,
     p_reason: reason,
   });
   if (error) throw error;
@@ -76,8 +77,12 @@ export async function rejectVerification(
 }
 
 /**
- * Upload a photo to Supabase Storage and return the public/signed URL.
- * Use this in production. For MVP, photo_placeholder works fine.
+ * Upload a verification photo to Supabase Storage. Returns the storage
+ * **path** (e.g. `<user-uuid>/1714117200000.jpg`), NOT a URL.
+ *
+ * The bucket is private — readable URLs are minted on demand via
+ * getVerificationPhotoSignedUrl. The path is what gets stored in
+ * verifications.photo_url.
  */
 export async function uploadVerificationPhoto(
   supabase: Client,
@@ -90,6 +95,26 @@ export async function uploadVerificationPhoto(
     upsert: false,
   });
   if (error) throw error;
-  const { data } = supabase.storage.from('verifications').getPublicUrl(path);
-  return data.publicUrl;
+  return path;
+}
+
+/**
+ * Mint a short-lived signed URL for a stored photo path. RLS on
+ * storage.objects ensures the caller is a co-party-member of the
+ * folder owner before the URL gets generated.
+ *
+ * Back-compat: if `pathOrUrl` already looks like an absolute http(s) URL
+ * (rows uploaded before this change), return it as-is.
+ */
+export async function getVerificationPhotoSignedUrl(
+  supabase: Client,
+  pathOrUrl: string,
+  expiresInSec = 60 * 15
+): Promise<string | null> {
+  if (/^https?:\/\//i.test(pathOrUrl)) return pathOrUrl;
+  const { data, error } = await supabase.storage
+    .from('verifications')
+    .createSignedUrl(pathOrUrl, expiresInSec);
+  if (error || !data) return null;
+  return data.signedUrl;
 }

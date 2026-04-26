@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { ArrowLeft, Check, Clock, Loader2, X } from 'lucide-react';
 import { useAppContext } from '../AppDataProvider';
 import { RejectDialog } from '@/components/modals/RejectDialog';
+import { VerificationPhoto } from '@/components/VerificationPhoto';
 import { createClient } from '@/lib/supabase/client';
 import { approveVerification, rejectVerification } from '@/lib/db/verifications';
 import { formatShortDateTime } from '@/lib/utils/date';
@@ -21,7 +22,7 @@ export default function InboxPage() {
   async function handleApprove(verifId: string) {
     await withSaving(async () => {
       const supabase = createClient();
-      await approveVerification(supabase, verifId, data.userId);
+      await approveVerification(supabase, verifId);
       await checkBadgesAndNotify();
       showToast('✨ 인증을 승인했어요');
       router.push('/');
@@ -32,7 +33,7 @@ export default function InboxPage() {
     if (!rejectingVerif) return;
     await withSaving(async () => {
       const supabase = createClient();
-      await rejectVerification(supabase, rejectingVerif.id, data.userId, reason);
+      await rejectVerification(supabase, rejectingVerif.id, reason);
       await reload();
       setRejectingVerif(null);
       router.push('/');
@@ -82,21 +83,19 @@ export default function InboxPage() {
                   </div>
                 </div>
               </div>
-              {verif.photo_url ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={verif.photo_url}
-                  alt={`${verif.task?.name ?? ''} 인증 사진`}
-                  className="w-full aspect-video rounded-xl object-cover mb-3"
-                />
-              ) : (
-                <div
-                  className="aspect-video rounded-xl flex items-center justify-center mb-3 text-5xl"
-                  style={{ background: `linear-gradient(135deg, ${t.accent}30, ${t.accentDark}40)` }}
-                >
-                  {verif.photo_placeholder ?? verif.task?.emoji ?? '📸'}
-                </div>
-              )}
+              <VerificationPhoto
+                pathOrUrl={verif.photo_url}
+                alt={`${verif.task?.name ?? ''} 인증 사진`}
+                className="w-full aspect-video rounded-xl object-cover mb-3"
+                fallback={
+                  <div
+                    className="aspect-video rounded-xl flex items-center justify-center mb-3 text-5xl"
+                    style={{ background: `linear-gradient(135deg, ${t.accent}30, ${t.accentDark}40)` }}
+                  >
+                    {verif.photo_placeholder ?? verif.task?.emoji ?? '📸'}
+                  </div>
+                }
+              />
               <div className="flex gap-2">
                 <button
                   onClick={() => setRejectingVerif(verif)}

@@ -45,12 +45,12 @@ export async function joinPartyByInviteCode(
 export async function getPartyByInviteCode(
   supabase: Client,
   inviteCode: string
-): Promise<Party | null> {
+): Promise<Pick<Party, 'id' | 'name'> | null> {
+  // Goes through a SECURITY DEFINER RPC that returns only id + name for the
+  // matching code, so we don't need a wide-open SELECT policy on parties.
   const { data, error } = await supabase
-    .from('parties')
-    .select('*')
-    .eq('invite_code', inviteCode.toUpperCase())
+    .rpc('get_party_by_invite_code', { p_code: inviteCode.toUpperCase() })
     .single();
-  if (error) return null;
-  return data as Party;
+  if (error || !data) return null;
+  return data as { id: string; name: string };
 }

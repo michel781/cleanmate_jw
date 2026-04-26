@@ -81,12 +81,16 @@ SUPABASE_SERVICE_ROLE_KEY=eyJhbGc...
 
 ### 4. DB 스키마 적용
 
-Supabase 대시보드의 **SQL Editor**에서 다음 순서로 실행:
+Supabase 대시보드의 **SQL Editor**에서 다음 순서로 실행 (각각 한 번만):
 
 1. `supabase/schema.sql` — 테이블 생성
-2. `supabase/functions.sql` — 트리거 & 함수
-3. `supabase/policies.sql` — RLS 정책
-4. (선택) `supabase/seed.sql` — 샘플 데이터
+2. `supabase/functions.sql` — 트리거 & RPC 함수 (`approve_verification`, `join_party`, `get_party_by_invite_code` 등)
+3. `supabase/policies.sql` — Row Level Security 정책 + Storage 정책
+4. `supabase/realtime.sql` — Realtime 구독 활성화 (없으면 인박스 실시간 알림 안 됨)
+5. `supabase/grants.sql` — 테이블 GRANT (필수, 누락 시 "permission denied" 에러)
+6. (선택) `supabase/seed.sql` — 샘플 데이터
+
+> 이 5단계 중 어디서든 막히면 [`docs/SETUP_TROUBLESHOOTING.md`](docs/SETUP_TROUBLESHOOTING.md)를 먼저 확인하세요. 흔한 함정 4개의 증상/원인/해결을 정리해뒀어요.
 
 또는 Supabase CLI를 사용하면:
 
@@ -94,17 +98,23 @@ Supabase 대시보드의 **SQL Editor**에서 다음 순서로 실행:
 npx supabase db push
 ```
 
+> **이미 운영 중이라면**: 보안 마이그레이션을 별도로 적용해주세요.
+> `supabase/migrations/2026-04-26-security-fixes.sql` 한 번 실행. 자세한 내용은 파일 헤더 코멘트 참조.
+
 ### 5. Authentication 설정
 
 Supabase 대시보드에서:
 - **Authentication → Providers**: 이메일 활성화
 - **Authentication → Settings**: "Enable anonymous sign-ins" 체크 (데모용)
+- **Authentication → URL Configuration**: Site URL `http://localhost:3000`, Redirect URLs `http://localhost:3000/**`
 
 ### 6. Storage 버킷 생성
 
 **Storage → Create bucket**:
 - 이름: `verifications`
-- Public: 아니오 (RLS로 보호됨)
+- **Public: OFF** (꼭 OFF — 앱에서 signed URL을 생성해서 보여줍니다)
+
+Storage RLS 정책은 **3번 단계의 `policies.sql`에 이미 포함**돼 있어요 (`verifications_upload_own`, `verifications_read_party`, `verifications_delete_own`). 별도로 추가할 SQL 없음.
 
 ### 7. 개발 서버 실행
 
@@ -114,15 +124,13 @@ npm run dev
 
 브라우저에서 [http://localhost:3000](http://localhost:3000) 접속!
 
-## 📱 PWA 빌드 (선택)
+## 📱 PWA
 
-모바일에서 네이티브 앱처럼 설치하고 싶으면:
+서비스 워커는 `@serwist/next` (이미 dependency에 포함)으로 자동 생성됩니다.
+프로덕션 빌드(`npm run build`)에서만 활성화되고, dev 모드에서는 비활성화돼서 HMR 속도에 영향이 없어요.
 
-```bash
-npm install next-pwa
-```
-
-자세한 설정은 `docs/PWA.md` 참조.
+배포 후 PWA 검증 방법, manifest 설정, custom domain 처리 등은
+[`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) 참조.
 
 ## 🧪 데이터 모델 개요
 

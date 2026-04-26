@@ -90,15 +90,19 @@ $$;
 -- ============================================================
 -- Approve verification (atomic operation)
 -- Updates: task.last_done_at, verification.status, scores, streak, activity
+--
+-- Actor is derived from auth.uid(), NOT a parameter — this prevents
+-- callers from approving on behalf of another user. Caller must be a
+-- party member of the verification's party AND not the original requester.
 -- ============================================================
-create or replace function public.approve_verification(
-  p_verification_id uuid,
-  p_approver_id uuid
-) returns json
+create or replace function public.approve_verification(p_verification_id uuid)
+returns json
 language plpgsql
 security definer
+set search_path = public
 as $$
 declare
+  v_user_id uuid := auth.uid();
   v_verif record;
   v_task record;
   v_today date := current_date;
@@ -108,6 +112,8 @@ declare
   v_streak_longest integer;
   v_diff_days integer;
 begin
+  if v_user_id is null then raise exception 'Not authenticated'; end if;
+
   -- Lock the verification row
   select * into v_verif
   from public.verifications
@@ -118,12 +124,23 @@ begin
     raise exception '인증 요청을 찾을 수 없어요 (이미 처리되었거나 존재하지 않음)';
   end if;
 
+  if not exists (
+    select 1 from public.party_members
+    where party_id = v_verif.party_id and user_id = v_user_id
+  ) then
+    raise exception '파티 멤버만 승인할 수 있어요';
+  end if;
+
+  if v_verif.requested_by = v_user_id then
+    raise exception '본인이 요청한 인증은 본인이 승인할 수 없어요';
+  end if;
+
   select * into v_task from public.tasks where id = v_verif.task_id;
 
   -- 1) Mark verification as approved
   update public.verifications
     set status = 'approved',
-        resolved_by = p_approver_id,
+        resolved_by = v_user_id,
         resolved_at = now()
     where id = p_verification_id;
 
@@ -178,7 +195,7 @@ begin
     jsonb_build_object(
       'task_name', v_task.name,
       'emoji', v_task.emoji,
-      'approver_id', p_approver_id
+      'approver_id', v_user_id
     )
   );
 
@@ -193,28 +210,42 @@ end;
 $$;
 
 -- ============================================================
--- Reject verification
+-- Reject verification — same auth posture as approve_verification.
 -- ============================================================
 create or replace function public.reject_verification(
   p_verification_id uuid,
-  p_rejecter_id uuid,
   p_reason text
 ) returns json
 language plpgsql
 security definer
+set search_path = public
 as $$
 declare
+  v_user_id uuid := auth.uid();
   v_verif record;
   v_task record;
 begin
+  if v_user_id is null then raise exception 'Not authenticated'; end if;
+
   select * into v_verif from public.verifications where id = p_verification_id and status = 'pending' for update;
   if not found then raise exception '인증 요청을 찾을 수 없어요'; end if;
+
+  if not exists (
+    select 1 from public.party_members
+    where party_id = v_verif.party_id and user_id = v_user_id
+  ) then
+    raise exception '파티 멤버만 반려할 수 있어요';
+  end if;
+
+  if v_verif.requested_by = v_user_id then
+    raise exception '본인이 요청한 인증은 본인이 반려할 수 없어요';
+  end if;
 
   select * into v_task from public.tasks where id = v_verif.task_id;
 
   update public.verifications
     set status = 'rejected',
-        resolved_by = p_rejecter_id,
+        resolved_by = v_user_id,
         resolved_at = now(),
         reject_reason = p_reason
     where id = p_verification_id;
@@ -230,7 +261,7 @@ begin
       'task_name', v_task.name,
       'emoji', v_task.emoji,
       'reason', p_reason,
-      'rejecter_id', p_rejecter_id
+      'rejecter_id', v_user_id
     )
   );
 
@@ -283,6 +314,26 @@ begin
 
   return v_new_id;
 end;
+$$;
+
+-- ============================================================
+-- Look up a party by invite code (returns id + name only).
+--
+-- Used by the join page to show "you're about to join: {name}" before
+-- the user is authenticated. Returns minimal data so we don't need a
+-- wide-open SELECT policy on parties.
+-- ============================================================
+create or replace function public.get_party_by_invite_code(p_code text)
+returns table(id uuid, name text)
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select id, name
+  from public.parties
+  where invite_code = upper(p_code)
+  limit 1;
 $$;
 
 -- ============================================================

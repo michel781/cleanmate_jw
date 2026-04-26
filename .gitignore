@@ -35,6 +35,9 @@ yarn-error.log*
 # Vercel
 .vercel
 
+# gstack analytics, security/design/qa reports (keep local only)
+.gstack/
+
 # Serwist (auto-generated service worker)
 /public/sw.js
 /public/sw.js.map

@@ -1,0 +1,35 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --brand: #D4824A;
+  --brand-dark: #A35A2B;
+  --cream: #FAF4EB;
+  --cream-dark: #F5EDE0;
+}
+
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
+html, body {
+  font-family: 'Pretendard Variable', Pretendard, -apple-system, BlinkMacSystemFont,
+    'Apple SD Gothic Neo', sans-serif;
+  color: #3D2817;
+  background: var(--cream-dark);
+  overscroll-behavior: none;
+}
+
+input, textarea, select, button {
+  font-family: inherit;
+}
+
+/* Hide scrollbar for chrome, safari */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}

@@ -42,9 +42,13 @@ export default function LoginPage() {
     const supabase = createClient();
 
     if (mode === 'signup') {
-      const { error } = await supabase.auth.signUp({
+      const { data, error } = await supabase.auth.signUp({
         email: email.trim().toLowerCase(),
         password,
+        options: {
+          emailRedirectTo:
+            typeof window !== 'undefined' ? `${window.location.origin}/` : undefined,
+        },
       });
       if (error) {
         if (error.message.toLowerCase().includes('already registered')
@@ -56,7 +60,14 @@ export default function LoginPage() {
         setLoading(false);
         return;
       }
-      // Email confirmation OFF (Supabase Auth 설정) → 즉시 세션 생성됨
+      // Confirm email 옵션에 따라 두 가지 케이스:
+      // - OFF: data.session 즉시 생성 → 홈으로 이동
+      // - ON: data.session=null + 인증 메일 발송 → 안내 화면 표시
+      if (!data.session) {
+        setMagicSent(true); // "메일 확인해주세요" 화면 재사용
+        setLoading(false);
+        return;
+      }
       router.push('/');
       router.refresh();
       return;
@@ -132,9 +143,13 @@ export default function LoginPage() {
         {magicSent ? (
           <div className="rounded-2xl p-5 text-center" style={{ background: '#FFFBF5' }}>
             <Mail size={36} className="mx-auto mb-3" style={{ color: '#D4824A' }} />
-            <div className="font-bold mb-1">이메일 확인해주세요</div>
-            <div className="text-xs opacity-70 mb-4">
-              {email}로 로그인 링크를 보냈어요
+            <div className="font-bold mb-1">이메일을 확인해주세요</div>
+            <div className="text-xs opacity-70 mb-2">
+              <b>{email}</b>로 인증 링크를 보냈어요
+            </div>
+            <div className="text-[11px] opacity-60 mb-4 leading-relaxed">
+              메일 안의 링크를 클릭하면 자동으로 로그인됩니다.<br />
+              메일이 안 보이면 스팸함 또는 프로모션 탭을 확인해주세요.
             </div>
             <button
               onClick={() => { setMagicSent(false); clearMessages(); }}

@@ -158,9 +158,12 @@ export function LivingRoom({
   const hourDeg = ((now.getHours() % 12) + now.getMinutes() / 60) * 30;
   const minDeg = now.getMinutes() * 6;
 
-  // Plant variants from layout
+  // Layout selections (with sensible defaults)
   const plantA = layout?.plants?.[0] ?? 'monstera';
   const plantB = layout?.plants?.[1] ?? 'cactus';
+  const sofaVariant = layout?.sofa ?? 'small';
+  const rugVariant = layout?.rug ?? 'round';
+  const extras = layout?.extras ?? [];
 
   // Mood ping (soft pulse on the floor near character)
   const showMood = isDirty;
@@ -319,20 +322,41 @@ export function LivingRoom({
         {/* TV cabinet — back wall, right of center */}
         <TvCabinet wx={6.0} wz={0.7} state={state} />
 
-        {/* Bean bag — right side mid */}
-        <BeanBag wx={9.5} wz={3.5} accent={t.accent} state={state} />
+        {/* Wall extras — drawn flat on back wall */}
+        {extras.includes('whiteboard') && <Whiteboard state={state} />}
+        {extras.includes('calendar') && <Calendar state={state} />}
 
-        {/* Plant A (large monstera) — back-right corner */}
+        {/* Bean bag — right side mid (only when sofa is NOT beanbag, otherwise replaces sofa) */}
+        {sofaVariant !== 'beanbag' && (
+          <BeanBag wx={9.5} wz={3.5} accent={t.accent} state={state} />
+        )}
+
+        {/* Plant A — back-right corner */}
         <Plant wx={10.5} wz={1.0} variant={plantA} state={state} />
 
-        {/* Round rug (under sofa+coffee table) */}
-        <RoundRug wx={5.5} wz={6.5} accent={t.accent} state={state} />
+        {/* Rug — under sofa area */}
+        {rugVariant === 'square' ? (
+          <SquareRug wx={5.5} wz={6.5} accent={t.accent} state={state} />
+        ) : rugVariant === 'nordic' ? (
+          <NordicRug wx={5.5} wz={6.5} accent={t.accent} state={state} />
+        ) : (
+          <RoundRug wx={5.5} wz={6.5} accent={t.accent} state={state} />
+        )}
 
         {/* Sofa — center-front, facing camera */}
-        <Sofa wx={3.5} wz={6.5} accent={t.accent} state={state} />
+        {sofaVariant === 'beanbag' ? (
+          <BeanBag wx={4.5} wz={7} accent={t.accent} state={state} large />
+        ) : (
+          <Sofa wx={sofaVariant === 'large' ? 2.8 : 3.5} wz={6.5} accent={t.accent} state={state} variant={sofaVariant} />
+        )}
 
         {/* Side table with mug — left of sofa */}
         <SideTable wx={1.5} wz={6.0} state={state} />
+
+        {/* Floor extras */}
+        {extras.includes('fishbowl') && <Fishbowl wx={9.6} wz={6.2} state={state} />}
+        {extras.includes('catbed') && <CatBed wx={8.4} wz={9.2} accent={t.accent} state={state} />}
+        {extras.includes('console') && <Console wx={6.5} wz={2.1} state={state} />}
 
         {/* Plant B (small cactus) — front-left corner on floor */}
         <Plant wx={0.7} wz={10.5} variant={plantB} state={state} small />
@@ -453,9 +477,26 @@ export function LivingRoom({
 // isometric chunk anchored at its base.
 // ============================================================
 
-function Sofa({ wx, wz, accent, state }: { wx: number; wz: number; accent: string; state: RoomState }) {
-  // Sofa footprint: 3 wide × 1.4 deep, back is 0.9 tall, seat is 0.5
-  const W = 3, D = 1.4, BACK_H = 0.9, SEAT_H = 0.5;
+function Sofa({
+  wx,
+  wz,
+  accent,
+  state,
+  variant = 'small',
+}: {
+  wx: number;
+  wz: number;
+  accent: string;
+  state: RoomState;
+  variant?: 'small' | 'large';
+}) {
+  // Small: 3 wide × 1.4 deep / Large: 4.4 wide × 1.6 deep, taller back
+  const isLarge = variant === 'large';
+  const W = isLarge ? 4.4 : 3;
+  const D = isLarge ? 1.6 : 1.4;
+  const BACK_H = isLarge ? 1.05 : 0.9;
+  const SEAT_H = isLarge ? 0.55 : 0.5;
+  const cushionCount = isLarge ? 3 : 2;
   const dim = state === 'critical' ? 0.7 : state === 'dirty' ? 0.85 : 1;
   const tone = state === 'clean' ? 1.05 : 1;
 
@@ -515,22 +556,23 @@ function Sofa({ wx, wz, accent, state }: { wx: number; wz: number; accent: strin
       <polygon points={backFront} fill={back} />
       <polygon points={backTop} fill={withShade(accent, +0.05)} />
 
-      {/* Cushions (2) */}
-      {[0, 1].map((i) => {
-        const cx = wx + 0.6 + i * 1.6;
+      {/* Cushions */}
+      {Array.from({ length: cushionCount }).map((_, i) => {
+        const cushionW = (W - 0.6) / cushionCount - 0.1;
+        const cx = wx + 0.3 + i * ((W - 0.6) / cushionCount);
         const cz = wz + 0.5;
         const ch = SEAT_H + 0.18;
         const top = isoPoly(
           [cx, cz, ch],
-          [cx + 1.0, cz, ch],
-          [cx + 1.0, cz + 0.7, ch],
-          [cx, cz + 0.7, ch],
+          [cx + cushionW, cz, ch],
+          [cx + cushionW, cz + (D - 0.7), ch],
+          [cx, cz + (D - 0.7), ch],
         );
         const front = isoPoly(
-          [cx, cz + 0.7, SEAT_H],
-          [cx + 1.0, cz + 0.7, SEAT_H],
-          [cx + 1.0, cz + 0.7, ch],
-          [cx, cz + 0.7, ch],
+          [cx, cz + (D - 0.7), SEAT_H],
+          [cx + cushionW, cz + (D - 0.7), SEAT_H],
+          [cx + cushionW, cz + (D - 0.7), ch],
+          [cx, cz + (D - 0.7), ch],
         );
         return (
           <g key={i}>
@@ -723,15 +765,28 @@ function TvCabinet({ wx, wz, state }: { wx: number; wz: number; state: RoomState
   );
 }
 
-function BeanBag({ wx, wz, accent, state }: { wx: number; wz: number; accent: string; state: RoomState }) {
+function BeanBag({
+  wx,
+  wz,
+  accent,
+  state,
+  large = false,
+}: {
+  wx: number;
+  wz: number;
+  accent: string;
+  state: RoomState;
+  large?: boolean;
+}) {
   const c = iso(wx, wz);
   const dim = state === 'critical' ? 0.7 : 1;
+  const s = large ? 1.6 : 1;
   return (
     <g filter="url(#iso-shadow)" opacity={dim}>
-      <ellipse cx={c.x} cy={c.y + 8} rx="36" ry="10" fill="rgba(0,0,0,0.15)" />
-      <ellipse cx={c.x} cy={c.y - 4} rx="34" ry="20" fill={withShade(accent, -0.15)} />
-      <ellipse cx={c.x} cy={c.y - 8} rx="28" ry="14" fill={withShade(accent, +0.1)} />
-      <ellipse cx={c.x - 6} cy={c.y - 12} rx="6" ry="3" fill="#FFFBF5" opacity="0.4" />
+      <ellipse cx={c.x} cy={c.y + 8 * s} rx={36 * s} ry={10 * s} fill="rgba(0,0,0,0.15)" />
+      <ellipse cx={c.x} cy={c.y - 4 * s} rx={34 * s} ry={20 * s} fill={withShade(accent, -0.15)} />
+      <ellipse cx={c.x} cy={c.y - 8 * s} rx={28 * s} ry={14 * s} fill={withShade(accent, +0.1)} />
+      <ellipse cx={c.x - 6 * s} cy={c.y - 12 * s} rx={6 * s} ry={3 * s} fill="#FFFBF5" opacity="0.4" />
     </g>
   );
 }
@@ -805,6 +860,306 @@ function Plant({
           <ellipse cx={top.x} cy={top.y - 30 * scale} rx={9 * scale} ry={13 * scale} fill={leafColor} />
         </>
       )}
+    </g>
+  );
+}
+
+function SquareRug({
+  wx,
+  wz,
+  accent,
+  state,
+}: {
+  wx: number;
+  wz: number;
+  accent: string;
+  state: RoomState;
+}) {
+  // Rug centered at (wx, wz), 5x4 footprint
+  const W = 5, D = 4;
+  const x0 = wx - W / 2, z0 = wz - D / 2;
+  const dim = state === 'critical' ? 0.5 : state === 'dirty' ? 0.75 : 1;
+  const outer = isoPoly([x0, z0], [x0 + W, z0], [x0 + W, z0 + D], [x0, z0 + D]);
+  const inner = isoPoly(
+    [x0 + 0.4, z0 + 0.4],
+    [x0 + W - 0.4, z0 + 0.4],
+    [x0 + W - 0.4, z0 + D - 0.4],
+    [x0 + 0.4, z0 + D - 0.4],
+  );
+  return (
+    <g opacity={dim}>
+      <polygon points={outer} fill={withShade(accent, -0.10)} opacity="0.55" />
+      <polygon points={inner} fill={withShade(accent, +0.12)} opacity="0.7" />
+      {/* Diagonal accent stripes */}
+      {[0, 1, 2].map((i) => {
+        const t = (i + 1) / 4;
+        const a = iso(x0 + W * t, z0 + 0.4);
+        const b = iso(x0 + W * t, z0 + D - 0.4);
+        return (
+          <line
+            key={i}
+            x1={a.x} y1={a.y} x2={b.x} y2={b.y}
+            stroke={withShade(accent, -0.20)} strokeWidth="1.2" opacity="0.5"
+          />
+        );
+      })}
+    </g>
+  );
+}
+
+function NordicRug({
+  wx,
+  wz,
+  accent,
+  state,
+}: {
+  wx: number;
+  wz: number;
+  accent: string;
+  state: RoomState;
+}) {
+  // Cream rug with chevron / triangular pattern
+  const W = 5.2, D = 4.2;
+  const x0 = wx - W / 2, z0 = wz - D / 2;
+  const dim = state === 'critical' ? 0.5 : state === 'dirty' ? 0.75 : 1;
+  const outer = isoPoly([x0, z0], [x0 + W, z0], [x0 + W, z0 + D], [x0, z0 + D]);
+  // Triangle band
+  const tri1 = isoPoly([x0 + 0.6, z0 + 0.6], [x0 + 1.4, z0 + 0.6], [x0 + 1.0, z0 + 1.4]);
+  const tri2 = isoPoly([x0 + 1.6, z0 + 0.6], [x0 + 2.4, z0 + 0.6], [x0 + 2.0, z0 + 1.4]);
+  const tri3 = isoPoly([x0 + 2.6, z0 + 0.6], [x0 + 3.4, z0 + 0.6], [x0 + 3.0, z0 + 1.4]);
+  const tri4 = isoPoly([x0 + 3.6, z0 + 0.6], [x0 + 4.4, z0 + 0.6], [x0 + 4.0, z0 + 1.4]);
+  // Bottom band stripe
+  const stripeA = isoPoly(
+    [x0 + 0.4, z0 + D - 1.2],
+    [x0 + W - 0.4, z0 + D - 1.2],
+    [x0 + W - 0.4, z0 + D - 0.9],
+    [x0 + 0.4, z0 + D - 0.9],
+  );
+  const stripeB = isoPoly(
+    [x0 + 0.4, z0 + D - 0.7],
+    [x0 + W - 0.4, z0 + D - 0.7],
+    [x0 + W - 0.4, z0 + D - 0.4],
+    [x0 + 0.4, z0 + D - 0.4],
+  );
+  return (
+    <g opacity={dim}>
+      <polygon points={outer} fill="#FFFBF5" opacity="0.82" />
+      <polygon points={outer} fill="none" stroke={withShade(accent, -0.10)} strokeWidth="0.8" opacity="0.6" />
+      <polygon points={tri1} fill={withShade(accent, -0.10)} opacity="0.65" />
+      <polygon points={tri2} fill={withShade(accent, +0.10)} opacity="0.65" />
+      <polygon points={tri3} fill={withShade(accent, -0.10)} opacity="0.65" />
+      <polygon points={tri4} fill={withShade(accent, +0.10)} opacity="0.65" />
+      <polygon points={stripeA} fill={withShade(accent, -0.15)} opacity="0.6" />
+      <polygon points={stripeB} fill={withShade(accent, +0.05)} opacity="0.6" />
+    </g>
+  );
+}
+
+function Fishbowl({ wx, wz, state }: { wx: number; wz: number; state: RoomState }) {
+  // Tiny stand + glass bowl on top
+  const dim = state === 'critical' ? 0.65 : 1;
+  const SW = 0.9, SD = 0.9, SH = 0.6;
+  const front = isoPoly(
+    [wx, wz + SD, 0],
+    [wx + SW, wz + SD, 0],
+    [wx + SW, wz + SD, SH],
+    [wx, wz + SD, SH],
+  );
+  const right = isoPoly(
+    [wx + SW, wz, 0],
+    [wx + SW, wz + SD, 0],
+    [wx + SW, wz + SD, SH],
+    [wx + SW, wz, SH],
+  );
+  const top = isoPoly(
+    [wx, wz, SH],
+    [wx + SW, wz, SH],
+    [wx + SW, wz + SD, SH],
+    [wx, wz + SD, SH],
+  );
+  const c = iso(wx + SW / 2, wz + SD / 2, SH);
+  return (
+    <g filter="url(#iso-shadow)" opacity={dim}>
+      <polygon points={right} fill="#7B5436" />
+      <polygon points={front} fill="#8B5E3C" />
+      <polygon points={top} fill="#A37148" />
+      {/* Glass bowl */}
+      <ellipse cx={c.x} cy={c.y - 14} rx="14" ry="13" fill="#A8DADC" opacity="0.55" stroke="#5C8A8C" strokeWidth="1" />
+      {/* Water line */}
+      <ellipse cx={c.x} cy={c.y - 17} rx="11" ry="2.4" fill="#88BBD8" opacity="0.7" />
+      {/* Fish (orange) */}
+      <ellipse cx={c.x - 2} cy={c.y - 12} rx="3" ry="1.8" fill="#E89B6B" />
+      <polygon
+        points={`${c.x - 5},${c.y - 12} ${c.x - 7},${c.y - 13.5} ${c.x - 7},${c.y - 10.5}`}
+        fill="#E89B6B"
+      />
+      <circle cx={c.x - 1} cy={c.y - 12.4} r="0.4" fill="#3F2718" />
+      {/* Bubbles */}
+      <circle cx={c.x + 4} cy={c.y - 14} r="0.8" fill="#FFFBF5" opacity="0.85" />
+      <circle cx={c.x + 5} cy={c.y - 17} r="0.6" fill="#FFFBF5" opacity="0.85" />
+    </g>
+  );
+}
+
+function CatBed({
+  wx,
+  wz,
+  accent,
+  state,
+}: {
+  wx: number;
+  wz: number;
+  accent: string;
+  state: RoomState;
+}) {
+  const c = iso(wx, wz);
+  const dim = state === 'critical' ? 0.65 : 1;
+  return (
+    <g filter="url(#iso-shadow)" opacity={dim}>
+      <ellipse cx={c.x} cy={c.y + 6} rx="28" ry="8" fill="rgba(0,0,0,0.18)" />
+      {/* Bed cushion */}
+      <ellipse cx={c.x} cy={c.y - 2} rx="26" ry="13" fill={withShade(accent, -0.15)} />
+      <ellipse cx={c.x} cy={c.y - 5} rx="20" ry="9" fill={withShade(accent, +0.15)} />
+      {/* Sleeping cat curl (gray cat) — only when not critical */}
+      {state !== 'critical' && (
+        <g>
+          <ellipse cx={c.x} cy={c.y - 7} rx="14" ry="6" fill="#A89C82" />
+          {/* head */}
+          <circle cx={c.x + 10} cy={c.y - 9} r="5" fill="#A89C82" />
+          {/* ears */}
+          <polygon
+            points={`${c.x + 7},${c.y - 13} ${c.x + 9},${c.y - 16} ${c.x + 11},${c.y - 13}`}
+            fill="#A89C82"
+          />
+          <polygon
+            points={`${c.x + 11},${c.y - 13} ${c.x + 13},${c.y - 16} ${c.x + 14},${c.y - 13}`}
+            fill="#A89C82"
+          />
+          {/* closed eyes */}
+          <path d={`M ${c.x + 8} ${c.y - 10} q 1 1 2 0`} stroke="#3F2718" strokeWidth="0.7" fill="none" />
+          <path d={`M ${c.x + 11} ${c.y - 10} q 1 1 2 0`} stroke="#3F2718" strokeWidth="0.7" fill="none" />
+          {/* tail wrap */}
+          <path
+            d={`M ${c.x - 12} ${c.y - 7} q -6 -2 -6 4 q 4 4 10 1`}
+            fill="#A89C82"
+          />
+        </g>
+      )}
+    </g>
+  );
+}
+
+function Console({ wx, wz, state }: { wx: number; wz: number; state: RoomState }) {
+  // Small game console + controller sitting on top of TV cabinet level (just on floor for simplicity)
+  const c = iso(wx, wz);
+  const dim = state === 'critical' ? 0.7 : 1;
+  return (
+    <g filter="url(#iso-shadow)" opacity={dim}>
+      <ellipse cx={c.x} cy={c.y + 5} rx="18" ry="4" fill="rgba(0,0,0,0.18)" />
+      {/* Console body */}
+      <rect x={c.x - 14} y={c.y - 6} width="28" height="10" rx="2" fill="#3F4855" />
+      <rect x={c.x - 14} y={c.y - 6} width="28" height="3" rx="2" fill="#52606D" />
+      {/* Power LED */}
+      <circle cx={c.x + 10} cy={c.y} r="1" fill={state === 'critical' ? '#7A2424' : '#7AD0FF'} />
+      {/* Controller */}
+      <ellipse cx={c.x - 8} cy={c.y + 8} rx="9" ry="3.5" fill="#52606D" />
+      <circle cx={c.x - 11} cy={c.y + 8} r="1.5" fill="#3F4855" />
+      <circle cx={c.x - 5} cy={c.y + 8} r="1.5" fill="#3F4855" />
+    </g>
+  );
+}
+
+function Whiteboard({ state }: { state: RoomState }) {
+  // Mounted on back wall, left of window
+  const FX0 = 1.2, FX1 = 3.4, FY0 = 4.0, FY1 = 6.4;
+  const tl = iso(FX0, 0, FY1);
+  const tr = iso(FX1, 0, FY1);
+  const br = iso(FX1, 0, FY0);
+  const bl = iso(FX0, 0, FY0);
+  const points = `${tl.x},${tl.y} ${tr.x},${tr.y} ${br.x},${br.y} ${bl.x},${bl.y}`;
+  const dim = state === 'critical' ? 0.55 : 1;
+  // Sample doodled lines
+  const lineY1 = (tl.y + bl.y) * 0.35 + tl.y * 0.15;
+  const lineY2 = (tl.y + bl.y) * 0.55 + tl.y * 0.05;
+  const lineY3 = (tl.y + bl.y) * 0.78;
+  const innerL = (tl.x + bl.x) / 2 - 16;
+  const innerR = (tr.x + br.x) / 2 + 14;
+  return (
+    <g opacity={dim}>
+      <polygon points={points} fill="#FFFBF5" />
+      <polygon points={points} fill="none" stroke="#3F4855" strokeWidth="2" />
+      {/* Doodle bullets */}
+      <circle cx={innerL + 2} cy={lineY1} r="1.5" fill="#5C8A6B" />
+      <line x1={innerL + 6} y1={lineY1} x2={innerR - 4} y2={lineY1} stroke="#3F2718" strokeWidth="1" />
+      <circle cx={innerL + 2} cy={lineY2} r="1.5" fill="#E89B6B" />
+      <line x1={innerL + 6} y1={lineY2} x2={innerR - 16} y2={lineY2} stroke="#3F2718" strokeWidth="1" />
+      <circle cx={innerL + 2} cy={lineY3} r="1.5" fill="#88BBD8" />
+      <line x1={innerL + 6} y1={lineY3} x2={innerR - 8} y2={lineY3} stroke="#3F2718" strokeWidth="1" />
+      {/* Marker tray */}
+      <line
+        x1={iso(FX0 - 0.1, 0, FY0 - 0.05).x} y1={iso(FX0 - 0.1, 0, FY0 - 0.05).y}
+        x2={iso(FX1 + 0.1, 0, FY0 - 0.05).x} y2={iso(FX1 + 0.1, 0, FY0 - 0.05).y}
+        stroke="#5A6470" strokeWidth="2.5" strokeLinecap="round"
+      />
+    </g>
+  );
+}
+
+function Calendar({ state }: { state: RoomState }) {
+  // Mounted on back wall, near right
+  const FX0 = 8.6, FX1 = 9.4, FY0 = 5.4, FY1 = 6.6;
+  const tl = iso(FX0, 0, FY1);
+  const tr = iso(FX1, 0, FY1);
+  const br = iso(FX1, 0, FY0);
+  const bl = iso(FX0, 0, FY0);
+  const points = `${tl.x},${tl.y} ${tr.x},${tr.y} ${br.x},${br.y} ${bl.x},${bl.y}`;
+  const dim = state === 'critical' ? 0.55 : 1;
+  // Header band
+  const headBL = iso(FX0, 0, FY1 - 0.35);
+  const headBR = iso(FX1, 0, FY1 - 0.35);
+  const headPoints = `${tl.x},${tl.y} ${tr.x},${tr.y} ${headBR.x},${headBR.y} ${headBL.x},${headBL.y}`;
+  // Body grid (3 cols × 3 rows)
+  const cells: React.ReactElement[] = [];
+  for (let r = 0; r < 3; r++) {
+    for (let c = 0; c < 3; c++) {
+      const fx0 = FX0 + 0.1 + c * ((FX1 - FX0 - 0.2) / 3);
+      const fx1 = fx0 + (FX1 - FX0 - 0.2) / 3 - 0.05;
+      const fy1 = (FY1 - 0.4) - r * ((FY1 - FY0 - 0.5) / 3);
+      const fy0 = fy1 - (FY1 - FY0 - 0.5) / 3 + 0.05;
+      const cellPts = isoPoly([fx0, 0, fy0], [fx1, 0, fy0], [fx1, 0, fy1], [fx0, 0, fy1]);
+      cells.push(
+        <polygon
+          key={`cal-${r}-${c}`}
+          points={cellPts}
+          fill="none"
+          stroke="#7B5436"
+          strokeWidth="0.5"
+          opacity="0.7"
+        />
+      );
+    }
+  }
+  // Highlight today (middle cell)
+  const today = iso((FX0 + FX1) / 2, 0, (FY0 + FY1) / 2 - 0.05);
+  return (
+    <g opacity={dim}>
+      <polygon points={points} fill="#FFFBF5" />
+      <polygon points={points} fill="none" stroke="#7B5436" strokeWidth="1.5" />
+      <polygon points={headPoints} fill="#C46E52" />
+      {cells}
+      <circle cx={today.x} cy={today.y} r="3" fill="#C46E52" opacity="0.85" />
+      {/* hanger nail */}
+      <circle cx={(tl.x + tr.x) / 2} cy={(tl.y + tr.y) / 2 - 3} r="1" fill="#3F2718" />
+      <line
+        x1={(tl.x + tr.x) / 2 - 2} y1={(tl.y + tr.y) / 2 - 3}
+        x2={(tl.x + tr.x) / 2} y2={tl.y + 0.5}
+        stroke="#3F2718" strokeWidth="0.6"
+      />
+      <line
+        x1={(tl.x + tr.x) / 2 + 2} y1={(tl.y + tr.y) / 2 - 3}
+        x2={(tl.x + tr.x) / 2} y2={tl.y + 0.5}
+        stroke="#3F2718" strokeWidth="0.6"
+      />
     </g>
   );
 }

@@ -163,6 +163,8 @@ export function LivingRoom({
   const plantB = layout?.plants?.[1] ?? 'cactus';
   const sofaVariant = layout?.sofa ?? 'small';
   const rugVariant = layout?.rug ?? 'round';
+  const tableVariant = layout?.table ?? 'round';
+  const bookshelfVariant = layout?.bookshelf ?? 'rect';
   const extras = layout?.extras ?? [];
 
   // Mood ping (soft pulse on the floor near character)
@@ -317,7 +319,7 @@ export function LivingRoom({
         {/* ───── FURNITURE ───── */}
         {/* Sort by depth: items further back (lower x+z) drawn first */}
         {/* Bookshelf — back wall, left side, against z=0 */}
-        <Bookshelf wx={1.2} wz={0.6} state={state} />
+        <Bookshelf wx={1.2} wz={0.6} state={state} variant={bookshelfVariant} />
 
         {/* TV cabinet — back wall, right of center */}
         <TvCabinet wx={6.0} wz={0.7} state={state} />
@@ -351,7 +353,7 @@ export function LivingRoom({
         )}
 
         {/* Side table with mug — left of sofa */}
-        <SideTable wx={1.5} wz={6.0} state={state} />
+        <SideTable wx={1.5} wz={6.0} state={state} variant={tableVariant} />
 
         {/* Floor extras */}
         {extras.includes('fishbowl') && <Fishbowl wx={9.6} wz={6.2} state={state} />}
@@ -599,34 +601,81 @@ function RoundRug({ wx, wz, accent, state }: { wx: number; wz: number; accent: s
   );
 }
 
-function SideTable({ wx, wz, state }: { wx: number; wz: number; state: RoomState }) {
-  const W = 1.2, D = 1.2, H = 0.6;
+function SideTable({
+  wx,
+  wz,
+  state,
+  variant = 'square',
+}: {
+  wx: number;
+  wz: number;
+  state: RoomState;
+  variant?: 'round' | 'square' | 'low';
+}) {
+  const dim = state === 'critical' ? 0.7 : 1;
+  const H = variant === 'low' ? 0.35 : 0.6;
+  const W = variant === 'low' ? 1.6 : 1.2;
+  const D = variant === 'low' ? 1.6 : 1.2;
+
+  // Round table: cylindrical leg + ellipse top
+  if (variant === 'round') {
+    const cx = wx + W / 2, cz = wz + D / 2;
+    const topC = iso(cx, cz, H);
+    const baseC = iso(cx, cz, 0);
+    const rxTop = (W / 2) * UNIT * COS;
+    const ryTop = (W / 2) * UNIT * SIN;
+    return (
+      <g filter="url(#iso-shadow)" opacity={dim}>
+        {/* Pedestal leg */}
+        <rect
+          x={topC.x - 4} y={topC.y}
+          width="8" height={baseC.y - topC.y}
+          fill="#7B5436"
+        />
+        {/* Base disc */}
+        <ellipse cx={baseC.x} cy={baseC.y} rx={rxTop * 0.55} ry={ryTop * 0.55} fill="#5C3F22" />
+        {/* Top disc */}
+        <ellipse cx={topC.x} cy={topC.y} rx={rxTop} ry={ryTop} fill="#A37148" />
+        <ellipse cx={topC.x} cy={topC.y - 1.5} rx={rxTop * 0.95} ry={ryTop * 0.95} fill="#B98859" />
+        <Mug wx={cx} wz={cz} y={H} state={state} />
+      </g>
+    );
+  }
+
+  // Common box top/front/right
   const top = isoPoly(
-    [wx, wz, H],
-    [wx + W, wz, H],
-    [wx + W, wz + D, H],
-    [wx, wz + D, H],
+    [wx, wz, H], [wx + W, wz, H], [wx + W, wz + D, H], [wx, wz + D, H],
   );
   const front = isoPoly(
-    [wx, wz + D, 0],
-    [wx + W, wz + D, 0],
-    [wx + W, wz + D, H],
-    [wx, wz + D, H],
+    [wx, wz + D, 0], [wx + W, wz + D, 0], [wx + W, wz + D, H], [wx, wz + D, H],
   );
   const right = isoPoly(
-    [wx + W, wz, 0],
-    [wx + W, wz + D, 0],
-    [wx + W, wz + D, H],
-    [wx + W, wz, H],
+    [wx + W, wz, 0], [wx + W, wz + D, 0], [wx + W, wz + D, H], [wx + W, wz, H],
   );
-  const dim = state === 'critical' ? 0.7 : 1;
+
   return (
     <g filter="url(#iso-shadow)" opacity={dim}>
       <polygon points={right} fill="#7B5436" />
       <polygon points={front} fill="#8B5E3C" />
       <polygon points={top} fill="#A37148" />
-      {/* Mug on top */}
-      <Mug wx={wx + 0.6} wz={wz + 0.6} y={H} state={state} />
+      {/* Low coffee table: lighter wood + magazine on top */}
+      {variant === 'low' && (
+        <g>
+          <rect
+            x={iso(wx + 0.3, wz + 0.4, H).x - 8}
+            y={iso(wx + 0.3, wz + 0.4, H).y - 2}
+            width="14" height="3"
+            fill="#C46E52" rx="0.5"
+          />
+          <rect
+            x={iso(wx + 0.3, wz + 0.4, H).x - 8}
+            y={iso(wx + 0.3, wz + 0.4, H).y + 2}
+            width="14" height="3"
+            fill="#5C8A6B" rx="0.5"
+          />
+        </g>
+      )}
+      <Mug wx={wx + W / 2} wz={wz + D / 2} y={H} state={state} />
     </g>
   );
 }
@@ -652,7 +701,17 @@ function Mug({ wx, wz, y, state }: { wx: number; wz: number; y: number; state: R
   );
 }
 
-function Bookshelf({ wx, wz, state }: { wx: number; wz: number; state: RoomState }) {
+function Bookshelf({
+  wx,
+  wz,
+  state,
+  variant = 'rect',
+}: {
+  wx: number;
+  wz: number;
+  state: RoomState;
+  variant?: 'rect' | 'l-shape';
+}) {
   const W = 2.0, D = 0.6, H = 4.5;
   const dim = state === 'critical' ? 0.65 : state === 'dirty' ? 0.85 : 1;
   const front = isoPoly(
@@ -717,6 +776,49 @@ function Bookshelf({ wx, wz, state }: { wx: number; wz: number; state: RoomState
           </g>
         );
       })}
+      {/* L-shape side wing — extending forward (along z) at the right edge of main shelf */}
+      {variant === 'l-shape' && (() => {
+        const wW = 0.6, wD = 1.6, wH = 2.6;
+        const wx0 = wx + W - wW;
+        const wz0 = wz + D;
+        const wFront = isoPoly(
+          [wx0, wz0 + wD, 0],
+          [wx0 + wW, wz0 + wD, 0],
+          [wx0 + wW, wz0 + wD, wH],
+          [wx0, wz0 + wD, wH],
+        );
+        const wRight = isoPoly(
+          [wx0 + wW, wz0, 0],
+          [wx0 + wW, wz0 + wD, 0],
+          [wx0 + wW, wz0 + wD, wH],
+          [wx0 + wW, wz0, wH],
+        );
+        const wTop = isoPoly(
+          [wx0, wz0, wH],
+          [wx0 + wW, wz0, wH],
+          [wx0 + wW, wz0 + wD, wH],
+          [wx0, wz0 + wD, wH],
+        );
+        return (
+          <g>
+            <polygon points={wRight} fill="#6B4624" />
+            <polygon points={wFront} fill="#8B5E3C" />
+            <polygon points={wTop} fill="#A37148" />
+            {/* Decor on top — small green plant */}
+            <ellipse
+              cx={iso(wx0 + wW / 2, wz0 + wD / 2, wH).x}
+              cy={iso(wx0 + wW / 2, wz0 + wD / 2, wH).y - 6}
+              rx="6" ry="4" fill="#5C8A6B"
+            />
+            <rect
+              x={iso(wx0 + wW / 2, wz0 + wD / 2, wH).x - 3}
+              y={iso(wx0 + wW / 2, wz0 + wD / 2, wH).y - 2}
+              width="6" height="4"
+              fill="#9B6440"
+            />
+          </g>
+        );
+      })()}
     </g>
   );
 }
@@ -838,8 +940,8 @@ function Plant({
       <polygon points={potRight} fill="#9B6440" />
       <polygon points={potFront} fill="#B57848" />
       <polygon points={potTop} fill="#D89868" />
-      {/* Leaves — 3 ellipses puffy, slightly tilted */}
-      {variant === 'cactus' ? (
+      {/* Foliage — varies by variant */}
+      {variant === 'cactus' && (
         <>
           <rect
             x={top.x - 6 * scale} y={top.y - 28 * scale}
@@ -853,12 +955,92 @@ function Plant({
             </>
           )}
         </>
-      ) : (
+      )}
+      {variant === 'monstera' && (
         <>
           <ellipse cx={top.x - 7 * scale} cy={top.y - 18 * scale} rx={10 * scale} ry={14 * scale} fill={leafColor} transform={`rotate(-20 ${top.x - 7 * scale} ${top.y - 18 * scale})`} />
           <ellipse cx={top.x + 7 * scale} cy={top.y - 22 * scale} rx={10 * scale} ry={14 * scale} fill={leafLight} transform={`rotate(20 ${top.x + 7 * scale} ${top.y - 22 * scale})`} />
           <ellipse cx={top.x} cy={top.y - 30 * scale} rx={9 * scale} ry={13 * scale} fill={leafColor} />
+          {/* Monstera fenestrations (slits) */}
+          {!wilted && (
+            <>
+              <line x1={top.x - 7 * scale} y1={top.y - 22 * scale} x2={top.x - 4 * scale} y2={top.y - 18 * scale} stroke="#3F5A47" strokeWidth="1" />
+              <line x1={top.x + 7 * scale} y1={top.y - 26 * scale} x2={top.x + 4 * scale} y2={top.y - 22 * scale} stroke="#3F5A47" strokeWidth="1" />
+            </>
+          )}
         </>
+      )}
+      {variant === 'succulent' && (
+        // Cluster of small rosette pads
+        <g>
+          {[
+            { dx: 0, dy: -8, r: 6 },
+            { dx: -7, dy: -4, r: 4 },
+            { dx: 7, dy: -5, r: 4.5 },
+            { dx: -3, dy: -12, r: 3.5 },
+            { dx: 4, dy: -13, r: 3 },
+          ].map((p, i) => (
+            <g key={i}>
+              <ellipse
+                cx={top.x + p.dx * scale} cy={top.y + p.dy * scale}
+                rx={p.r * scale} ry={p.r * 0.7 * scale}
+                fill={i % 2 === 0 ? leafLight : leafColor}
+              />
+              {!wilted && (
+                <circle cx={top.x + p.dx * scale} cy={top.y + p.dy * scale} r={p.r * 0.35 * scale} fill={withShade(leafLight, +0.15)} opacity="0.7" />
+              )}
+            </g>
+          ))}
+        </g>
+      )}
+      {variant === 'tree' && (
+        // Slim trunk + canopy + 3 cherry blossoms
+        <g>
+          <rect
+            x={top.x - 1.4 * scale} y={top.y - 30 * scale}
+            width={2.8 * scale} height={26 * scale}
+            fill="#7B5436"
+          />
+          <ellipse cx={top.x} cy={top.y - 36 * scale} rx={14 * scale} ry={11 * scale} fill={wilted ? '#7A6240' : '#88BB8E'} />
+          <ellipse cx={top.x - 6 * scale} cy={top.y - 32 * scale} rx={9 * scale} ry={8 * scale} fill={wilted ? '#7A6240' : '#5C8A6B'} />
+          <ellipse cx={top.x + 6 * scale} cy={top.y - 32 * scale} rx={9 * scale} ry={8 * scale} fill={wilted ? '#7A6240' : '#5C8A6B'} />
+          {!wilted && (
+            <>
+              <circle cx={top.x - 5 * scale} cy={top.y - 38 * scale} r={1.6 * scale} fill="#F4B6C8" />
+              <circle cx={top.x + 4 * scale} cy={top.y - 36 * scale} r={1.4 * scale} fill="#F4B6C8" />
+              <circle cx={top.x + 1 * scale} cy={top.y - 42 * scale} r={1.6 * scale} fill="#F4B6C8" />
+            </>
+          )}
+        </g>
+      )}
+      {variant === 'herb' && (
+        // Bushy multi-stem herb (basil-style) with small leaves
+        <g>
+          {[-5, 0, 5].map((dx, i) => (
+            <g key={i}>
+              <line
+                x1={top.x + dx * scale} y1={top.y}
+                x2={top.x + dx * scale * 1.4} y2={top.y - 16 * scale}
+                stroke={wilted ? '#7A6240' : '#5C8A6B'} strokeWidth={1.4}
+              />
+              <ellipse
+                cx={top.x + dx * scale * 1.4} cy={top.y - 18 * scale}
+                rx={4 * scale} ry={3 * scale}
+                fill={wilted ? '#8A7654' : '#88BB8E'}
+              />
+              <ellipse
+                cx={top.x + dx * scale * 1.4 - 2 * scale} cy={top.y - 12 * scale}
+                rx={3 * scale} ry={2.2 * scale}
+                fill={wilted ? '#7A6240' : '#5C8A6B'}
+              />
+              <ellipse
+                cx={top.x + dx * scale * 1.4 + 2 * scale} cy={top.y - 13 * scale}
+                rx={2.8 * scale} ry={2 * scale}
+                fill={wilted ? '#7A6240' : '#5C8A6B'}
+              />
+            </g>
+          ))}
+        </g>
       )}
     </g>
   );

@@ -245,6 +245,17 @@ export function LivingRoom({
             <stop offset="0%" stopColor={pal.leftWall[0]} />
             <stop offset="100%" stopColor={pal.leftWall[1]} />
           </linearGradient>
+          {/* Warm ceiling light — used at night */}
+          <radialGradient id="iso-ceiling-glow" cx="50%" cy="0%" r="80%">
+            <stop offset="0%" stopColor="#FFE9A8" stopOpacity="0.55" />
+            <stop offset="60%" stopColor="#FFD478" stopOpacity="0.18" />
+            <stop offset="100%" stopColor="#FFD478" stopOpacity="0" />
+          </radialGradient>
+          {/* Daylight beam — used when sunny + day */}
+          <linearGradient id="iso-sun-beam" x1="0" x2="0" y1="0" y2="1">
+            <stop offset="0%" stopColor="#FFF6C8" stopOpacity="0.5" />
+            <stop offset="100%" stopColor="#FFF6C8" stopOpacity="0" />
+          </linearGradient>
         </defs>
 
         {/* Outer page gradient (sky behind window peeks through walls; here just a neutral pad) */}
@@ -326,6 +337,35 @@ export function LivingRoom({
         {/* Plant B (small cactus) — front-left corner on floor */}
         <Plant wx={0.7} wz={10.5} variant={plantB} state={state} small />
 
+        {/* ───── DAYLIGHT FLOOR BEAM (sunny + morning/afternoon/evening) ─────
+             A trapezoid of warm light cast from the back-wall window onto the floor. */}
+        {(weather === 'sunny' || timeOfDay === 'morning' || timeOfDay === 'evening') &&
+         timeOfDay !== 'night' && (
+          <polygon
+            points={isoPoly(
+              [3.5, 0.1],
+              [8.5, 0.1],
+              [9.5, 6],
+              [2.5, 6],
+            )}
+            fill="url(#iso-sun-beam)"
+            opacity={timeOfDay === 'evening' ? 0.7 : 0.55}
+            pointerEvents="none"
+          />
+        )}
+
+        {/* ───── CEILING GLOW (night) ─────
+             A soft warm pendant-light spilling from the ceiling area. */}
+        {timeOfDay === 'night' && (
+          <ellipse
+            cx={iso(6, 5, 7).x}
+            cy={iso(6, 5, 7).y}
+            rx="200" ry="120"
+            fill="url(#iso-ceiling-glow)"
+            pointerEvents="none"
+          />
+        )}
+
         {/* ───── FLOOR DUST (dirty/critical) ───── */}
         {isDirty && <DustBunnies isCritical={isCritical} />}
 
@@ -365,6 +405,43 @@ export function LivingRoom({
           @keyframes cm-spk { 0%,100% { opacity: 0; transform: scale(0.6); } 50% { opacity: 0.85; transform: scale(1); } }
           .cm-rain-drop { animation: cm-rain 1.2s linear infinite; }
           @keyframes cm-rain { 0% { transform: translateY(-6px); opacity: 0; } 30% { opacity: 0.8; } 100% { transform: translateY(28px); opacity: 0; } }
+
+          .cm-snow-flake { animation: cm-snow 4.5s linear infinite; }
+          @keyframes cm-snow {
+            0%   { transform: translateY(-4px) translateX(0); opacity: 0; }
+            15%  { opacity: 0.95; }
+            100% { transform: translateY(110px) translateX(8px); opacity: 0; }
+          }
+
+          .cm-star { animation: cm-star 3s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
+          @keyframes cm-star {
+            0%, 100% { opacity: 0.3; transform: scale(0.85); }
+            50%      { opacity: 1;   transform: scale(1.15); }
+          }
+
+          .cm-cloud { animation: cm-cloud-drift 28s linear infinite; }
+          @keyframes cm-cloud-drift {
+            0%   { transform: translateX(-4px); }
+            50%  { transform: translateX(4px); }
+            100% { transform: translateX(-4px); }
+          }
+
+          .cm-bird { animation: cm-bird-fly 6s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
+          @keyframes cm-bird-fly {
+            0%   { transform: translate(0, 0); opacity: 0.6; }
+            50%  { transform: translate(20px, -6px); opacity: 0.9; }
+            100% { transform: translate(40px, 0); opacity: 0; }
+          }
+
+          .cm-sun-rays { animation: cm-rays 6s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
+          @keyframes cm-rays {
+            0%, 100% { opacity: 0.45; }
+            50%      { opacity: 0.75; }
+          }
+
+          @media (prefers-reduced-motion: reduce) {
+            .cm-snow-flake, .cm-star, .cm-cloud, .cm-bird, .cm-sun-rays, .cm-rain-drop { animation: none !important; }
+          }
         `}</style>
       </svg>
     </div>
@@ -753,6 +830,12 @@ function BackWallWindow({
   const bl = iso(FX0, 0, FY0);
   const points = `${tl.x},${tl.y} ${tr.x},${tr.y} ${br.x},${br.y} ${bl.x},${bl.y}`;
 
+  // Window viewport bounds (for clip + interior layout)
+  const skyX = Math.min(tl.x, bl.x);
+  const skyY = Math.min(tl.y, tr.y);
+  const skyW = Math.max(tr.x, br.x) - skyX;
+  const skyH = Math.max(bl.y, br.y) - skyY;
+
   // Cross at midpoints
   const tm = iso((FX0 + FX1) / 2, 0, FY1);
   const bm = iso((FX0 + FX1) / 2, 0, FY0);
@@ -760,48 +843,178 @@ function BackWallWindow({
   const rm = iso(FX1, 0, (FY0 + FY1) / 2);
 
   // Sun/moon position based on time
-  const sunCx = (tl.x + tr.x) / 2 + (timeOfDay === 'morning' ? -16 : timeOfDay === 'evening' ? 16 : 0);
-  const sunCy = (tl.y + bl.y) / 2 - 8;
+  const sunCx = (tl.x + tr.x) / 2 + (timeOfDay === 'morning' ? -18 : timeOfDay === 'evening' ? 18 : 0);
+  const sunCy = (tl.y + bl.y) / 2 - 10 + (timeOfDay === 'evening' ? 6 : 0);
+  const isNight = timeOfDay === 'night';
+  const isDay = timeOfDay === 'morning' || timeOfDay === 'afternoon';
+
+  // Per-clip id for sky elements (so birds/clouds/rain don't escape window)
+  const clipId = 'iso-sky-clip';
 
   return (
     <g>
+      <defs>
+        <clipPath id={clipId}>
+          <polygon points={points} />
+        </clipPath>
+      </defs>
+
       {/* Sky */}
       <polygon points={points} fill="url(#iso-sky)" />
-      {/* Sun / moon */}
-      <circle cx={sunCx} cy={sunCy} r="14" fill="url(#iso-sun)" opacity="0.95" />
-      {/* Rain droplets */}
-      {weather === 'rainy' && !reduced && (
-        <g>
-          {Array.from({ length: 8 }).map((_, i) => {
-            const px = tl.x + 8 + (i * (tr.x - tl.x - 16)) / 8;
-            const py = tl.y + 6 + (i % 3) * 6;
-            return (
+
+      {/* All sky-internal elements clipped to the window */}
+      <g clipPath={`url(#${clipId})`}>
+        {/* ── Sun / Moon ── */}
+        <circle cx={sunCx} cy={sunCy} r="14" fill="url(#iso-sun)" opacity={isNight ? 0.85 : 0.95} />
+        {isNight && (
+          // Subtle moon craters
+          <g opacity="0.35">
+            <circle cx={sunCx - 4} cy={sunCy - 2} r="2" fill="#9A9AB0" />
+            <circle cx={sunCx + 3} cy={sunCy + 3} r="1.5" fill="#9A9AB0" />
+          </g>
+        )}
+
+        {/* ── Stars (night) ── */}
+        {isNight && (
+          <g>
+            {[
+              { x: skyX + 12, y: skyY + 8 },
+              { x: skyX + 28, y: skyY + 16 },
+              { x: skyX + skyW - 18, y: skyY + 6 },
+              { x: skyX + skyW - 30, y: skyY + 22 },
+              { x: skyX + 50, y: skyY + 28 },
+              { x: skyX + skyW - 50, y: skyY + 14 },
+            ].map((p, i) => (
+              <g key={`star-${i}`} className="cm-star" style={{ animationDelay: `${i * 0.5}s` }}>
+                <circle cx={p.x} cy={p.y} r="1.3" fill="#FFFBE0" />
+                <circle cx={p.x} cy={p.y} r="0.5" fill="#FFFFFF" />
+              </g>
+            ))}
+          </g>
+        )}
+
+        {/* ── Sun rays (sunny + daytime) ── */}
+        {!reduced && weather === 'sunny' && isDay && (
+          <g className="cm-sun-rays" opacity="0.55" pointerEvents="none">
+            {[-30, -15, 0, 15, 30].map((deg) => (
               <line
-                key={`r-${i}`}
-                x1={px} y1={py}
-                x2={px - 2} y2={py + 6}
-                stroke="#A8DADC" strokeWidth="1.3"
-                className="cm-rain-drop"
-                style={{ animationDelay: `${i * 0.15}s` }}
+                key={deg}
+                x1={sunCx} y1={sunCy}
+                x2={sunCx + Math.sin((deg * Math.PI) / 180) * 28}
+                y2={sunCy - Math.cos((deg * Math.PI) / 180) * 28}
+                stroke="#FFE8A0" strokeWidth="1.4" strokeLinecap="round"
               />
-            );
-          })}
-        </g>
-      )}
-      {/* Snow (snowy) */}
-      {weather === 'snowy' && !reduced && (
-        <g>
-          {Array.from({ length: 6 }).map((_, i) => {
-            const px = tl.x + 8 + (i * (tr.x - tl.x - 16)) / 6;
-            const py = tl.y + 8 + (i % 2) * 10;
-            return <circle key={`s-${i}`} cx={px} cy={py} r="1.5" fill="#FFFBF5" />;
-          })}
-        </g>
-      )}
+            ))}
+          </g>
+        )}
+
+        {/* ── Birds (morning) ── */}
+        {!reduced && timeOfDay === 'morning' && (
+          <g opacity="0.7">
+            {[0, 1].map((i) => (
+              <g key={`bird-${i}`} className="cm-bird" style={{ animationDelay: `${i * 1.4}s` }}>
+                <path
+                  d={`M ${skyX + 24 + i * 18} ${skyY + 18 + i * 6} q 4 -4 8 0 q 4 -4 8 0`}
+                  stroke="#3F2718" strokeWidth="1.2" fill="none" strokeLinecap="round"
+                />
+              </g>
+            ))}
+          </g>
+        )}
+
+        {/* ── Clouds (afternoon always 1; cloudy → bigger 3) ── */}
+        {timeOfDay === 'afternoon' && weather !== 'rainy' && weather !== 'snowy' && (
+          <g opacity="0.85">
+            <Cloud x={skyX + 18} y={skyY + 12} scale={0.9} drift />
+            {weather === 'cloudy' && (
+              <>
+                <Cloud x={skyX + skyW - 40} y={skyY + 8} scale={1.0} drift />
+                <Cloud x={skyX + skyW * 0.45} y={skyY + 26} scale={0.7} />
+              </>
+            )}
+          </g>
+        )}
+        {/* Cloudy at other times of day too */}
+        {weather === 'cloudy' && timeOfDay !== 'afternoon' && (
+          <g opacity={isNight ? 0.45 : 0.7}>
+            <Cloud x={skyX + 14} y={skyY + 14} scale={0.8} drift={!reduced} dark={isNight} />
+            <Cloud x={skyX + skyW - 38} y={skyY + 22} scale={0.9} dark={isNight} />
+          </g>
+        )}
+
+        {/* ── Rain droplets (rainy) ── */}
+        {weather === 'rainy' && !reduced && (
+          <g>
+            {Array.from({ length: 12 }).map((_, i) => {
+              const px = skyX + 6 + ((i * 11) % (skyW - 12));
+              const py = skyY + 4 + (i % 4) * 8;
+              return (
+                <line
+                  key={`r-${i}`}
+                  x1={px} y1={py}
+                  x2={px - 2} y2={py + 7}
+                  stroke="#A8DADC" strokeWidth="1.3"
+                  className="cm-rain-drop"
+                  style={{ animationDelay: `${i * 0.12}s` }}
+                />
+              );
+            })}
+          </g>
+        )}
+
+        {/* ── Snowflakes (snowy) ── */}
+        {weather === 'snowy' && !reduced && (
+          <g>
+            {Array.from({ length: 10 }).map((_, i) => {
+              const px = skyX + 6 + ((i * 13) % (skyW - 12));
+              return (
+                <circle
+                  key={`s-${i}`} cx={px} cy={skyY - 2}
+                  r={i % 2 === 0 ? 1.6 : 1.2} fill="#FFFBF5"
+                  className="cm-snow-flake"
+                  style={{ animationDelay: `${i * 0.3}s` }}
+                />
+              );
+            })}
+          </g>
+        )}
+      </g>
+
+      {/* ── Window pane glaze (subtle) ── */}
+      <polygon points={points} fill="#FFFBF5" opacity={isNight ? 0 : 0.05} />
+
       {/* Frame */}
       <polygon points={points} fill="none" stroke="#7B5436" strokeWidth="3" strokeLinejoin="round" />
       <line x1={tm.x} y1={tm.y} x2={bm.x} y2={bm.y} stroke="#7B5436" strokeWidth="2.5" />
       <line x1={lm.x} y1={lm.y} x2={rm.x} y2={rm.y} stroke="#7B5436" strokeWidth="2.5" />
+
+      {/* Window sill (thin ledge under the window) */}
+      <line
+        x1={iso(FX0 - 0.2, 0, FY0).x} y1={iso(FX0 - 0.2, 0, FY0).y}
+        x2={iso(FX1 + 0.2, 0, FY0).x} y2={iso(FX1 + 0.2, 0, FY0).y}
+        stroke="#9B6440" strokeWidth="3.5" strokeLinecap="round"
+      />
+    </g>
+  );
+}
+
+/** Small puffy cloud — composed of 3 overlapping ellipses. */
+function Cloud({
+  x, y, scale = 1, drift = false, dark = false,
+}: {
+  x: number; y: number; scale?: number; drift?: boolean; dark?: boolean;
+}) {
+  const fill = dark ? '#C8C4BC' : '#FFFBF5';
+  const shadow = dark ? '#A8A39A' : '#E8DFC9';
+  return (
+    <g
+      transform={`translate(${x},${y}) scale(${scale})`}
+      className={drift ? 'cm-cloud' : ''}
+    >
+      <ellipse cx="14" cy="6" rx="10" ry="6" fill={shadow} opacity="0.5" />
+      <ellipse cx="0" cy="0" rx="7" ry="5" fill={fill} />
+      <ellipse cx="9" cy="-2" rx="9" ry="6" fill={fill} />
+      <ellipse cx="18" cy="2" rx="7" ry="5" fill={fill} />
     </g>
   );
 }

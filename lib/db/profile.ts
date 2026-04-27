@@ -1,5 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
-import type { Profile } from '@/types/app';
+import type { Profile, Appearance, RoomLayout } from '@/types/app';
 
 type Client = SupabaseClient;
 
@@ -13,7 +13,13 @@ export async function getMyProfile(supabase: Client): Promise<Profile | null> {
 
 export async function updateMyProfile(
   supabase: Client,
-  updates: { name?: string; emoji?: string; onboarded?: boolean }
+  updates: {
+    name?: string;
+    emoji?: string;
+    onboarded?: boolean;
+    appearance?: Appearance;
+    room_layout?: RoomLayout;
+  }
 ): Promise<Profile> {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error('Not authenticated');

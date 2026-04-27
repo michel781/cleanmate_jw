@@ -140,7 +140,12 @@ export default function HomePage() {
       </div>
 
       <div className="px-3 py-2">
-        <LivingRoom state={state} />
+        <LivingRoom
+          state={state}
+          appearance={me.appearance}
+          layout={me.room_layout}
+          onCharacterTap={() => { /* tap reactions handled inside LivingRoom */ }}
+        />
       </div>
 
       <div className="px-5 mt-2">

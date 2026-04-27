@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Award, ChevronRight, Mail, Settings, Sparkles, Trophy } from 'lucide-react';
+import { ArrowLeft, Award, ChevronRight, Home, Mail, Settings, Sparkles, Trophy, User } from 'lucide-react';
 import { useAppContext } from '../AppDataProvider';
 import { BADGES } from '@/lib/constants';
 
@@ -122,6 +122,40 @@ export default function MyPage() {
       </div>
 
       <div className="px-5 space-y-3">
+        <Link
+          href="/me/appearance"
+          className="block w-full rounded-2xl p-4 flex items-center justify-between"
+          style={{ background: cardBg }}
+        >
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: `${t.accent}15` }}>
+              <User size={16} style={{ color: t.accent }} />
+            </div>
+            <div className="text-left">
+              <div className="font-bold text-sm">내 캐릭터 꾸미기</div>
+              <div className="text-[10px] opacity-50">색상, 모자, 옷, 액세서리</div>
+            </div>
+          </div>
+          <ChevronRight size={16} style={{ color: t.accent }} />
+        </Link>
+
+        <Link
+          href="/me/room"
+          className="block w-full rounded-2xl p-4 flex items-center justify-between"
+          style={{ background: cardBg }}
+        >
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: `${t.accent}15` }}>
+              <Home size={16} style={{ color: t.accent }} />
+            </div>
+            <div className="text-left">
+              <div className="font-bold text-sm">방 꾸미기</div>
+              <div className="text-[10px] opacity-50">소파, 러그, 화분, 가구</div>
+            </div>
+          </div>
+          <ChevronRight size={16} style={{ color: t.accent }} />
+        </Link>
+
         <Link
           href="/achievements"
           className="block w-full rounded-2xl p-4 flex items-center justify-between"

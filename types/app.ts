@@ -18,11 +18,45 @@ export type ActivityType =
   | 'badge_earned'
   | 'streak_milestone';
 
+export type CharacterColor =
+  | 'brown' | 'white' | 'black' | 'pink' | 'gray' | 'caramel' | 'lavender' | 'mint';
+export type CharacterHat =
+  | 'none' | 'beanie' | 'beret' | 'cap' | 'crown' | 'bunny' | 'headphones';
+export type CharacterShirt =
+  | 'none' | 'stripe' | 'hoodie' | 'overalls' | 'cardigan' | 'pajamas' | 'suit';
+export type CharacterAccessory =
+  | 'none' | 'scarf' | 'glasses' | 'ribbon' | 'flower';
+
+export interface Appearance {
+  color?: CharacterColor;
+  hat?: CharacterHat;
+  shirt?: CharacterShirt;
+  accessory?: CharacterAccessory;
+}
+
+export type SofaVariant = 'small' | 'large' | 'beanbag';
+export type RugVariant = 'round' | 'square' | 'nordic';
+export type PlantVariant = 'monstera' | 'cactus' | 'succulent' | 'tree' | 'herb';
+export type TableVariant = 'round' | 'square' | 'low';
+export type BookshelfVariant = 'rect' | 'l-shape';
+export type RoomExtra = 'fishbowl' | 'catbed' | 'console' | 'whiteboard' | 'calendar';
+
+export interface RoomLayout {
+  sofa?: SofaVariant;
+  rug?: RugVariant;
+  plants?: PlantVariant[];
+  table?: TableVariant;
+  bookshelf?: BookshelfVariant;
+  extras?: RoomExtra[];
+}
+
 export interface Profile {
   id: string;
   name: string;
   emoji: string;
   onboarded: boolean;
+  appearance?: Appearance;
+  room_layout?: RoomLayout;
   created_at: string;
   updated_at: string;
 }
